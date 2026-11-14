@@ -84,7 +84,10 @@ give_back() {
     lipc-set-prop com.lab126.pillow disableEnablePillow enable 2>/dev/null
     lipc-set-prop com.lab126.powerd preventScreenSaver 0 2>/dev/null
     lipc-set-prop com.lab126.cmd wirelessEnable 1 2>/dev/null
-    [ -n "$WATCH_PID" ] && kill "$WATCH_PID" 2>/dev/null
+    for f in "$WORK/key.pid" "$WORK/lipc.pid"; do
+        [ -f "$f" ] && kill "$(cat "$f")" 2>/dev/null
+        rm -f "$f"
+    done
     rm -f "$PIDFILE" "$STOPFILE"
     # Ask the Kindle to redraw its home screen
     lipc-set-prop com.lab126.appmgrd start app://com.lab126.booklet.home 2>/dev/null
@@ -102,9 +105,25 @@ log "starting $PLACE (refresh ${REFRESH}s)"
 
 trap 'give_back; exit 0' TERM INT HUP
 
-# Power button = leave the dashboard
-( lipc-wait-event com.lab126.powerd goingToScreenSaver >/dev/null 2>&1; touch "$STOPFILE" ) &
-WATCH_PID=$!
+# Power button = leave the dashboard. Two independent watchers; whichever fires
+# first creates $STOPFILE. A watcher that fails to start just never fires.
+# 1) The power key itself, read straight from the hardware: any press ends this dd.
+KEYDEV=""
+for ev in /sys/class/input/event*; do
+    if grep -qiE "onkey|power" "$ev/device/name" 2>/dev/null; then KEYDEV="/dev/input/${ev##*/}"; break; fi
+done
+[ -z "$KEYDEV" ] && KEYDEV=/dev/input/event0
+sh -c "echo \$\$ > $WORK/key.pid; exec dd if=$KEYDEV of=/dev/null bs=16 count=1" 2>/dev/null \
+    && touch "$STOPFILE" &
+# 2) The Kindle's own "going to sleep" signal, as a backup.
+sh -c "echo \$\$ > $WORK/lipc.pid; exec lipc-wait-event com.lab126.powerd goingToScreenSaver" >/dev/null 2>&1 \
+    && touch "$STOPFILE" &
+sleep 1
+if kill -0 "$(cat "$WORK/key.pid" 2>/dev/null)" 2>/dev/null; then
+    log "watching power key on $KEYDEV"
+else
+    log "WARNING: could not watch the power key ($KEYDEV)"
+fi
 
 take_over
 [ -f "$IMG" ] && show_image "$IMG"
