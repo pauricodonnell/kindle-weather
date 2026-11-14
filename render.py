@@ -243,11 +243,20 @@ def render(data, now=None):
         c.text((x, top + 28), times[i].strftime("%H:%M"), font("medium", 16), fill=40, anchor="ma")
         draw_icon(c, kind(hourly["weather_code"][i]), x, top + 82, 46, night=not hourly["is_day"][i])
         c.text((x, top + 114), f"{round(hourly['temperature_2m'][i])}°", font("semibold", 22), anchor="ma")
-        p = hourly["precipitation_probability"][i] or 0
-        ptxt, pf = f"{p}%", font("regular", 15)
-        x0 = x - (9 + 5 + c.width(ptxt, pf)) / 2
-        rain_drop(c, x0 + 4.5, top + 151, 13, fill=0 if p >= 50 else 120)
-        c.text((x0 + 14, top + 147), ptxt, pf, fill=0 if p >= 50 else 90)
+        p = hourly["precipitation_probability"][i]
+        if p is None:  # source without probabilities: show expected rain over the next 3 h
+            amt = sum((hourly["precipitation"][k] or 0) for k in range(i, min(i + 3, len(times))))
+            ptxt = "dry" if amt < 0.1 else (f"{amt:.1f}mm" if amt < 10 else f"{amt:.0f}mm")
+            heavy = amt >= 1
+        else:
+            ptxt, heavy = f"{p}%", p >= 50
+        pf = font("regular", 15)
+        if ptxt == "dry":
+            c.text((x, top + 147), ptxt, pf, fill=90, anchor="ma")
+        else:
+            x0 = x - (9 + 5 + c.width(ptxt, pf)) / 2
+            rain_drop(c, x0 + 4.5, top + 151, 13, fill=0 if heavy else 120)
+            c.text((x0 + 14, top + 147), ptxt, pf, fill=0 if heavy else 90)
 
     # next days
     top = 530

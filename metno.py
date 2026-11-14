@@ -92,7 +92,7 @@ def fetch(lat, lon, tz):
             hourly["weather_code"].append(symbol_to_wmo(nxt["summary"]["symbol_code"]))
             hourly["precipitation"].append(nxt["details"].get("precipitation_amount", 0) or 0)
             p = nxt["details"].get("probability_of_precipitation")
-            hourly["precipitation_probability"].append(round(p) if p is not None else 0)
+            hourly["precipitation_probability"].append(round(p) if p is not None else None)  # Nordic-only
             hourly["wind_speed_10m"].append(d["wind_speed"] * 3.6)
             hourly["wind_gusts_10m"].append(d.get("wind_speed_of_gust", d["wind_speed"] * 1.5) * 3.6)
             hourly["is_day"].append(0)  # set below
@@ -111,9 +111,13 @@ def fetch(lat, lon, tz):
         daily["time"].append(day)
         daily["temperature_2m_max"].append(max(temps))
         daily["temperature_2m_min"].append(min(temps))
-        daily["weather_code"].append(max(codes))  # most significant daytime weather
+        code = max(codes)  # most significant daytime weather
+        if sum(hourly["precipitation"][i] for i in idx) >= 1 and code < 51:
+            code = max(hourly["weather_code"][i] for i in idx)  # rain fell outside daytime hours
+        daily["weather_code"].append(code)
         daily["precipitation_sum"].append(sum(hourly["precipitation"][i] for i in idx))
-        daily["precipitation_probability_max"].append(max(hourly["precipitation_probability"][i] for i in idx))
+        probs = [hourly["precipitation_probability"][i] for i in idx if hourly["precipitation_probability"][i] is not None]
+        daily["precipitation_probability_max"].append(max(probs) if probs else None)
         daily["wind_speed_10m_max"].append(max(hourly["wind_speed_10m"][i] for i in idx))
         daily["wind_gusts_10m_max"].append(max(hourly["wind_gusts_10m"][i] for i in idx))
         daily["sunrise"].append(rise.strftime("%Y-%m-%dT%H:%M"))
