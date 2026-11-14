@@ -17,9 +17,9 @@ from zoneinfo import ZoneInfo
 from PIL import Image, ImageDraw, ImageFont
 
 # ---- settings ---------------------------------------------------------------
-PLACE = os.environ.get("PLACE", "Letterkenny")
-LAT = float(os.environ.get("LAT", "54.9558"))
-LON = float(os.environ.get("LON", "-7.7342"))
+PLACE = os.environ.get("PLACE", "Inver")
+LAT = float(os.environ.get("LAT", "54.6498"))
+LON = float(os.environ.get("LON", "-8.2634"))
 TZ = os.environ.get("TZ_NAME", "Europe/Dublin")
 W, H = int(os.environ.get("WIDTH", "600")), int(os.environ.get("HEIGHT", "800"))
 S = 2  # supersampling factor: draw at 2x, downscale for smooth edges

@@ -1,6 +1,6 @@
 # kindle-weather
 
-A Letterkenny weather dashboard for a jailbroken Kindle 7 (600×800 e-ink).
+An Inver (Co. Donegal) weather dashboard for a jailbroken Kindle 7 (600×800 e-ink).
 
 - `render.py` draws the dashboard from the free [Open-Meteo](https://open-meteo.com) forecast, falling back to [MET Norway](https://api.met.no) (`metno.py`) if Open-Meteo refuses the request.
 - `.github/workflows/render.yml` runs it every 30 minutes and publishes the image to the `output` branch:
