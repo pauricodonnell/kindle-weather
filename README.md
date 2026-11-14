@@ -1,12 +1,11 @@
 # kindle-weather
 
-An Inver (Co. Donegal) weather dashboard for a jailbroken Kindle 7 (600×800 e-ink).
+A weather dashboard (Inver, Letterkenny, Dublin) for a jailbroken Kindle 7 (600×800 e-ink).
 
 - `render.py` draws the dashboard from the free [Open-Meteo](https://open-meteo.com) forecast, falling back to [MET Norway](https://api.met.no) (`metno.py`) if Open-Meteo refuses the request.
-- `.github/workflows/render.yml` runs it every 30 minutes and publishes the image to the `output` branch:
-  `https://raw.githubusercontent.com/pauricodonnell/kindle-weather/output/weather.png`
+- `.github/workflows/render.yml` runs it every 30 minutes and publishes the images to the `output` branch, e.g.
+  `https://raw.githubusercontent.com/pauricodonnell/kindle-weather/output/inver.png`
 - `locations.json` lists the places; each becomes `output/<name>.png` (lowercase, e.g. `letterkenny.png`).
 - `kindle/` holds the files that go on the Kindle: `weatherdash/` in the root of the Kindle drive, and one
   `documents/Weather - <Place>.sh` launcher per place (tap one in the library to start; press the power button to stop).
-  `documents/Weather Dashboard.sh` (tap it in the library to start; press the power button to stop).
 
