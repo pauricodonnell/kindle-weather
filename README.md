@@ -2,7 +2,7 @@
 
 A Letterkenny weather dashboard for a jailbroken Kindle 7 (600×800 e-ink).
 
-- `render.py` draws the dashboard from the free [Open-Meteo](https://open-meteo.com) forecast.
+- `render.py` draws the dashboard from the free [Open-Meteo](https://open-meteo.com) forecast, falling back to [MET Norway](https://api.met.no) (`metno.py`) if Open-Meteo refuses the request.
 - `.github/workflows/render.yml` runs it every 30 minutes and publishes the image to the `output` branch:
   `https://raw.githubusercontent.com/pauricodonnell/kindle-weather/output/weather.png`
 - `kindle/` holds the files that go on the Kindle: `weatherdash/` in the root of the Kindle drive, and

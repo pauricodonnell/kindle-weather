@@ -287,7 +287,32 @@ def render(data, now=None):
     ss = dt.datetime.fromisoformat(daily["sunset"][rows[0]]).strftime("%H:%M")
     c.line([(M, H - 46), (W - M, H - 46)], width=1, fill=160)
     c.text((M, H - 24), f"Sunrise {sr}   Sunset {ss}", font("regular", 16), fill=60, anchor="lm")
+    if data.get("source"):
+        c.text((M + 250, H - 24), data["source"], font("regular", 13), fill=130, anchor="lm")
     return c.final()
+
+
+def fetch_forecast():
+    """Open-Meteo first (a couple of tries), then MET Norway as a backup.
+
+    GitHub's runners share IP addresses, so Open-Meteo's free tier sometimes
+    answers 429 Too Many Requests.
+    """
+    import time
+    import metno
+    for attempt in range(3):
+        try:
+            req = urllib.request.Request(API, headers={"User-Agent": metno.UA})
+            with urllib.request.urlopen(req, timeout=30) as r:
+                data = json.load(r)
+            data["source"] = "Open-Meteo"
+            return data
+        except Exception as e:  # noqa: BLE001
+            print(f"Open-Meteo attempt {attempt + 1} failed: {e}")
+            if attempt < 2:
+                time.sleep(15 * (attempt + 1))
+    print("Falling back to MET Norway")
+    return metno.fetch(LAT, LON, TZ)
 
 
 def main():
@@ -300,8 +325,7 @@ def main():
         with open(args.sample) as f:
             data = json.load(f)
     else:
-        with urllib.request.urlopen(API, timeout=30) as r:
-            data = json.load(r)
+        data = fetch_forecast()
     now = dt.datetime.fromisoformat(args.now).replace(tzinfo=ZoneInfo(TZ)) if args.now else None
     img = render(data, now)
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
