@@ -277,7 +277,8 @@ def render(data, now=None):
         c.rect((x0, cy - 4, max(x1, x0 + 8), cy + 4), fill=40, radius=4)
         mm = daily["precipitation_sum"][i] or 0
         gust = round(daily["wind_gusts_10m_max"][i])
-        c.text((160, cy), f"{mm:.0f} mm" if mm >= 0.5 else "dry", font("regular", 17),
+        rain = f"{mm:.0f} mm" if mm >= 0.5 else ("<1 mm" if mm > 0 else "dry")
+        c.text((160, cy), rain, font("regular", 17),
                fill=0 if mm >= 5 else 90, anchor="lm")
         c.text((W - M, cy), f"{gust}", font("medium", 17), fill=0 if gust >= 60 else 90, anchor="rm")
     c.text((W - M, top - 14), "GUSTS km/h", font("semibold", 12), fill=110, anchor="ra")
