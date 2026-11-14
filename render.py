@@ -27,9 +27,10 @@ S = 2  # supersampling factor: draw at 2x, downscale for smooth edges
 HERE = os.path.dirname(os.path.abspath(__file__))
 FONT_DIR = os.path.join(HERE, "fonts")
 
-API = (
+def api_url(lat, lon):
+    return (
     "https://api.open-meteo.com/v1/forecast"
-    f"?latitude={LAT}&longitude={LON}&timezone={TZ.replace('/', '%2F')}"
+    f"?latitude={lat}&longitude={lon}&timezone={TZ.replace('/', '%2F')}"
     "&wind_speed_unit=kmh&forecast_days=6"
     "&current=temperature_2m,apparent_temperature,weather_code,is_day,"
     "wind_speed_10m,wind_gusts_10m,wind_direction_10m,relative_humidity_2m,precipitation"
@@ -37,7 +38,7 @@ API = (
     "&daily=weather_code,temperature_2m_max,temperature_2m_min,"
     "precipitation_sum,precipitation_probability_max,wind_speed_10m_max,"
     "wind_gusts_10m_max,sunrise,sunset"
-)
+    )
 
 # ---- weather codes (WMO) -----------------------------------------------------
 WMO_TEXT = {
@@ -200,7 +201,7 @@ def rain_drop(c, x, y, h, fill=0):
 
 
 # ---- layout -----------------------------------------------------------------
-def render(data, now=None):
+def render(data, now=None, place=None):
     tz = ZoneInfo(TZ)
     now = now or dt.datetime.now(tz)
     cur, hourly, daily = data["current"], data["hourly"], data["daily"]
@@ -208,7 +209,7 @@ def render(data, now=None):
     M = 28  # margin
 
     # header
-    c.text((M, 26), PLACE, font("bold", 30))
+    c.text((M, 26), place or PLACE, font("bold", 30))
     c.text((M, 64), now.strftime("%A %-d %B"), font("regular", 19), fill=60)
     c.text((W - M, 30), now.strftime("%H:%M"), font("semibold", 26), anchor="ra")
     c.text((W - M, 64), "updated", font("regular", 15), fill=110, anchor="ra")
@@ -302,27 +303,32 @@ def render(data, now=None):
     return c.final()
 
 
-def fetch_forecast():
+_open_meteo_down = False
+
+
+def fetch_forecast(lat=LAT, lon=LON):
     """Open-Meteo first (a couple of tries), then MET Norway as a backup.
 
     GitHub's runners share IP addresses, so Open-Meteo's free tier sometimes
     answers 429 Too Many Requests.
     """
+    global _open_meteo_down
     import time
     import metno
-    for attempt in range(3):
+    for attempt in range(0 if _open_meteo_down else 3):
         try:
-            req = urllib.request.Request(API, headers={"User-Agent": metno.UA})
-            with urllib.request.urlopen(req, timeout=30) as r:
+            req = urllib.request.Request(api_url(lat, lon), headers={"User-Agent": metno.UA})
+            with urllib.request.urlopen(req, timeout=20) as r:
                 data = json.load(r)
             data["source"] = "Open-Meteo"
             return data
         except Exception as e:  # noqa: BLE001
             print(f"Open-Meteo attempt {attempt + 1} failed: {e}")
             if attempt < 2:
-                time.sleep(15 * (attempt + 1))
-    print("Falling back to MET Norway")
-    return metno.fetch(LAT, LON, TZ)
+                time.sleep(10 * (attempt + 1))
+    _open_meteo_down = True  # don't keep waiting on it for the other locations
+    print("Using MET Norway")
+    return metno.fetch(lat, lon, TZ)
 
 
 def main():
@@ -330,7 +336,12 @@ def main():
     ap.add_argument("--sample", help="render from a saved Open-Meteo JSON file")
     ap.add_argument("--now", help="override the current time (ISO), for testing")
     ap.add_argument("--out", default=os.path.join(HERE, "out", "weather.png"))
+    ap.add_argument("--all", action="store_true",
+                    help="render every place in locations.json to out/<name>.png")
     args = ap.parse_args()
+    if args.all:
+        render_all()
+        return
     if args.sample:
         with open(args.sample) as f:
             data = json.load(f)
@@ -341,6 +352,31 @@ def main():
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     img.save(args.out, optimize=True)
     print("wrote", args.out, img.size)
+
+
+def slug(name):
+    return "".join(ch for ch in name.lower() if ch.isalnum())
+
+
+def render_all():
+    import shutil
+    with open(os.path.join(HERE, "locations.json")) as f:
+        places = json.load(f)
+    out = os.path.join(HERE, "out")
+    os.makedirs(out, exist_ok=True)
+    failed = 0
+    for i, p in enumerate(places):
+        path = os.path.join(out, slug(p["name"]) + ".png")
+        try:
+            render(fetch_forecast(p["lat"], p["lon"]), place=p["name"]).save(path, optimize=True)
+            print("wrote", path)
+            if i == 0:  # weather.png = first place, for older Kindle scripts
+                shutil.copy(path, os.path.join(out, "weather.png"))
+        except Exception as e:  # noqa: BLE001
+            failed += 1
+            print(f"{p['name']} failed: {e}")
+    if failed == len(places):
+        raise SystemExit("every location failed")
 
 
 if __name__ == "__main__":

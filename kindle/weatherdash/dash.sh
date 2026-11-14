@@ -3,14 +3,17 @@
 # Downloads a pre-rendered PNG every REFRESH seconds and shows it full screen.
 # Press the power button to leave the dashboard and return to the normal Kindle.
 
+# Usage: dash.sh <place>   e.g. dash.sh inver  (matches a name in locations.json, lowercase)
 # ---- settings (edit config.sh rather than this file) ----
-URL="https://raw.githubusercontent.com/pauricodonnell/kindle-weather/output/weather.png"
+PLACE="${1:-inver}"
+BASE="https://raw.githubusercontent.com/pauricodonnell/kindle-weather/output"
 REFRESH=1800          # seconds between updates
 WIFI_OFF_BETWEEN=yes  # turn Wi-Fi off between updates to save battery
 [ -f /mnt/us/weatherdash/config.sh ] && . /mnt/us/weatherdash/config.sh
+URL="$BASE/$PLACE.png"
 
 WORK=/var/tmp/weatherdash
-IMG=$WORK/weather.png
+IMG=$WORK/$PLACE.png
 PIDFILE=/var/tmp/weatherdash.pid
 STOPFILE=/var/tmp/weatherdash.stop
 LOG=/mnt/us/weatherdash/dash.log
@@ -95,7 +98,7 @@ echo $$ > "$PIDFILE"
 rm -f "$STOPFILE"
 # keep the log small
 [ -f "$LOG" ] && [ "$(wc -c < "$LOG")" -gt 100000 ] && tail -c 20000 "$LOG" > "$LOG.tmp" && mv -f "$LOG.tmp" "$LOG"
-log "starting (refresh ${REFRESH}s)"
+log "starting $PLACE (refresh ${REFRESH}s)"
 
 trap 'give_back; exit 0' TERM INT HUP
 

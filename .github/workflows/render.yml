@@ -24,7 +24,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install pillow
-      - run: python render.py --out out/weather.png
+      - run: python render.py --all
 
       # Publish only the image, to an `output` branch that is overwritten each time
       # (no history piles up). The Kindle downloads it from raw.githubusercontent.com.
@@ -34,7 +34,7 @@ jobs:
           git init -q -b output
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add weather.png
+          git add *.png
           git commit -qm "Weather $(date -u +%FT%TZ)"
           git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" output
 
