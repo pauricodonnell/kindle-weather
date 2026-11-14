@@ -1,0 +1,47 @@
+name: Render weather
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"   # GitHub may run this a few minutes late
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: render
+  cancel-in-progress: true
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pillow
+      - run: python render.py --out out/weather.png
+
+      # Publish only the image, to an `output` branch that is overwritten each time
+      # (no history piles up). The Kindle downloads it from raw.githubusercontent.com.
+      - name: Publish image
+        run: |
+          cd out
+          git init -q -b output
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add weather.png
+          git commit -qm "Weather $(date -u +%FT%TZ)"
+          git push -qf "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" output
+
+      # GitHub pauses scheduled workflows in repos with no activity for 60 days.
+      # Re-enabling the workflow each run is meant to keep the schedule alive.
+      - name: Keep schedule alive
+        if: github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/render.yml/enable" || true
